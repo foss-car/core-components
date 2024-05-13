@@ -1,0 +1,30 @@
+/// A shift register that will shift values on each clock
+pub module ShiftRegister #(
+    /// The buffersize is how big this shift register is
+    param BUFFER_SIZE: u32 = 8,
+) (
+    /// System clock used to shift the values
+    clk: input clock,
+    /// Reset all the registers to 0
+    rst: input reset,
+    /// The data to shift into the registers
+    shift_in: input logic,
+    /// The last data that got shifted out
+    shift_out: output logic,
+    /// The internal shift register values
+    shift_reg: output logic<BUFFER_SIZE>,
+) {
+
+    always_ff (clk, rst) {
+        if_reset {
+            shift_reg = '1; //Active low for uart
+            shift_out = 1'b0;
+        } else {
+            shift_out = shift_reg[BUFFER_SIZE - 1];
+            for i: u32 in (BUFFER_SIZE - 1)..0 {
+                shift_reg[i] = shift_reg[i - 1];
+            }
+            shift_reg[0] = shift_in;
+        }
+    }
+}

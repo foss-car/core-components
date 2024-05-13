@@ -1,0 +1,75 @@
+/// Remove noise from input signal
+/// Assumes signal is an active low and default state is high
+pub module DenoiseAverageLow #(
+    /// How many clock cycles to wait before taking another reading
+    param DELAY_CYCLES: u32 = 4,
+    /// How many different samples will be averaged together
+    param AVERAGE_COUNT: u32 = 5,
+) (
+    /// system clock
+    clk: input clock,
+    /// reset pin for the lin interface
+    rst: input reset,
+    /// Data that gets averaged
+    data: input logic,
+    /// The averaged data value
+    data_denoise: output logic,
+) {
+    var data_array : logic<AVERAGE_COUNT>;
+    var take_sample: logic               ;
+
+    inst data_counter: Counter #(
+        SIZE: $clog2(DELAY_CYCLES),
+    ) (
+        clk                    ,
+        rst                    ,
+        usr_rst  : 0           ,
+        en       : 1           ,
+        start_val: '0          ,
+        end_val  : DELAY_CYCLES,
+        count    : _           ,
+        at_end   : take_sample ,
+    );
+
+    inst average: AverageSignalsBool #(
+        AVERAGE_COUNT  ,
+    ) (
+        values : data_array  ,
+        average: data_denoise,
+    );
+
+    always_ff (clk, rst) {
+        if_reset {
+            data_array = '1;
+        } else {
+            if take_sample { // wait DELAY_CYCLES amount of clock cycles
+                data_array = {data, data_array[msb:1]};
+            }
+        }
+    }
+}
+
+/// Get an average of multiple data points to see if it is majority high or majority low
+module AverageSignalsBool #(
+    /// How many different samples will be averaged together
+    param AVERAGE_COUNT: u32 = 5,
+) (
+    /// An array of the values to average
+    values: input logic<AVERAGE_COUNT>,
+    /// One bit output that is high if the majority of the input values where high and vise versa
+    average: output logic,
+) {
+    var count: logic<$clog2(AVERAGE_COUNT)> [AVERAGE_COUNT];
+
+    assign count[0] = values[0];
+    for i in 1..AVERAGE_COUNT :get_count {
+        assign count[i] = count[i - 1] + values[i];
+    }
+    always_comb {
+        if (count >: AVERAGE_COUNT / 2) {
+            average = 1;
+        } else {
+            average = 0;
+        }
+    }
+}

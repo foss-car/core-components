@@ -1,0 +1,43 @@
+/// A counter module that will count up from a start value to an end value
+pub module Counter #(
+    /// The size of the counting variable needs to be bigger than the start and end value. TODO: Add asserts
+    param SIZE: u32 = 2,
+) (
+    /// The clock input to the counter, increment on every clock
+    clk: input clock,
+    /// System Reset, it will reset the counter to the start value
+    rst: input reset,
+    /// Reset request for modules, it will reset the counter to the start value when high (syncronous)
+    usr_rst: input reset,
+    /// Only count when enabled, otherwise don't change (still will reset)
+    en: input logic,
+    /// Start value that counter will start counting at
+    start_val: input logic<SIZE>,
+    /// When the counter hits this value the next one will be the start value
+    end_val: input logic<SIZE>,
+    /// The current count of the counter
+    count: output logic<SIZE>,
+    /// Will go high when the count equals the end value
+    at_end: output logic,
+) {
+    var next_count: logic<SIZE>;
+    always_ff (clk, rst) {
+        if_reset {
+            count = start_val;
+        } else if usr_rst {
+            count = start_val;
+        } else if en {
+            count = next_count;
+        }
+    }
+
+    always_comb {
+        if count == end_val {
+            at_end     = '1;
+            next_count = start_val;
+        } else {
+            at_end     = '0;
+            next_count = count + 1;
+        }
+    }
+}
